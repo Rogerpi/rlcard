@@ -14,6 +14,7 @@ from rlcard.games.bridge.utils.action_event import PassAction
 from rlcard.games.bridge.utils.bridge_card import BridgeCard
 from rlcard.games.bridge.utils.move import DealHandMove
 
+from rlcard.envs.bridge import DefaultBridgePayoffDelegate, DefaultBridgeStateExtractor, BridgeEnv
 
 class TestBridgeGame(unittest.TestCase):
 
@@ -98,10 +99,17 @@ class TestBridgeGame(unittest.TestCase):
         self.assertTrue(not game.round.get_right_defender())
 
     def test_play_game(self):
-        game = Game()
+        #game = Game()
+        env = BridgeEnv(config={
+            'seed': 42,
+            'allow_step_back' : False
+        })
+        game = env.game
         next_state, next_player_id = game.init_game()
         deal_hand_move = game.round.move_sheet[0]
         self.assertTrue(isinstance(deal_hand_move, DealHandMove))
+
+
         print(f'test_play_game {deal_hand_move}')
         while not game.is_over():
             current_player_id = game.round.current_player_id
@@ -110,6 +118,38 @@ class TestBridgeGame(unittest.TestCase):
             action = np.random.choice(legal_actions)
             print(f'test_play_game {current_player_id} {action} from {[str(x) for x in legal_actions]}')
             next_state, next_player_id = game.step(action)
+            print("perfect_info:")
+            print(env.get_perfect_information())
+            print(f'state (player {current_player_id})')
+            state = env._extract_state(game)
+
+            s_obs = state['obs']
+            s_legal_actions = state['legal_actions']
+
+            s0 = 0
+            s1 = 52*4
+            s2 = s1+52*4
+            s3 = s2 + 52
+            s_hands_rep = s_obs[s0: s1]
+            s_trick_rep = s_obs[s1: s2]
+            s_hidden_cards = s_obs[s2:s3]
+            print(f's_hands_rep {s_hands_rep}')
+            print(f's_trick-rep {s_trick_rep}')
+            print(f's_hidden_Ccards {s_hidden_cards}')
+            print(f'hands rep: {[f"p: {i//52} c: {BridgeCard.card(i%52)}" for i, x in enumerate(s_hands_rep) if x == 1]}')
+            print(f'trick rep: {[f"p: {i//52} c: {BridgeCard.card(i%52)}" for i, x in enumerate(s_trick_rep) if x == 1]}')
+            print(f'trumfo: {s_obs[-5:]}')
+            print(f'hidden card: {[BridgeCard.card(i) for i, x in enumerate(s_hidden_cards) if x == 1]}')
+           
+            print(f'visible cards: {sum(s_hands_rep)}')
+            print(f'trick rep count {sum(s_trick_rep)}')
+            print(f'sum hidden {sum(s_hidden_cards)}')
+            print(f'legal actions: {s_legal_actions}')
+            
+            # for player_id in range(4):
+            #     print(player_id)
+            #     print(env.get_state(player_id))
+            print("----")
         for player_id in range(4):
             player = game.round.players[player_id]
             hand = player.hand

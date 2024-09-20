@@ -59,7 +59,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--env',
         type=str,
-        default='leduc-holdem',
+        default='butifarra',
         choices=[
             'blackjack',
             'leduc-holdem',
@@ -69,14 +69,25 @@ if __name__ == '__main__':
             'no-limit-holdem',
             'uno',
             'gin-rummy',
+            'butifarra'
         ],
     )
+    # parser.add_argument(
+    #     '--models',
+    #     nargs='*',
+    #     default=[
+    #         'experiments/leduc_holdem_dqn_result/model.pth',
+    #         'random',
+    #     ],
+    # )
     parser.add_argument(
         '--models',
         nargs='*',
         default=[
-            'experiments/leduc_holdem_dqn_result/model.pth',
-            'random',
+            'experiments/butifarra/model.pth',
+            'human', # todo
+            'experiments/butifarra/model.pth',
+            'experiments/butifarra/model.pth'
         ],
     )
     parser.add_argument(

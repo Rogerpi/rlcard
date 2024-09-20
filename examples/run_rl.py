@@ -111,7 +111,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--env',
         type=str,
-        default='leduc-holdem',
+        default='butifarra',
         choices=[
             'blackjack',
             'leduc-holdem',
@@ -122,6 +122,7 @@ if __name__ == '__main__':
             'uno',
             'gin-rummy',
             'bridge',
+            'butifarra'
         ],
     )
     parser.add_argument(
@@ -161,7 +162,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--log_dir',
         type=str,
-        default='experiments/leduc_holdem_dqn_result/',
+        default='experiments/butifarra/',
     )
     
     parser.add_argument(
