@@ -162,7 +162,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--log_dir',
         type=str,
-        default='experiments/butifarra/',
+        default='experiments/butifarra-newstate/',
     )
     
     parser.add_argument(

@@ -14,7 +14,7 @@ from rlcard.games.butifarra import Game
 from rlcard.games.butifarra.game import ButifarraGame
 from rlcard.games.butifarra.utils.action_event import ActionEvent
 from rlcard.games.butifarra.utils.butifarra_card import ButifarraCard
-from rlcard.games.butifarra.utils.move import CallMove, PlayCardMove
+from rlcard.games.butifarra.utils.move import CallMove, PlayCardMove, PlayerMove
 
 #   [] Why no_bid_action_id in bidding_rep ?
 #       It allows the bidding always to start with North.
@@ -48,7 +48,7 @@ class ButifarraEnv(Env):
         self.name = 'butifarra'
         self.game = Game()
         super().__init__(config=config)
-        self.butifarraPayoffDelegate = DefaultButifarraPayoffDelegate()
+        self.butifarraPayoffDelegate = V1ButifarraPayoffDelegate()
         self.butifarraStateExtractor = DefaultButifarraStateExtractor()
         state_shape_size = self.butifarraStateExtractor.get_state_shape_size()
         self.state_shape = [[1, state_shape_size] for _ in range(self.num_players)]
@@ -151,6 +151,81 @@ class DefaultButifarraPayoffDelegate(ButifarraPayoffDelegate):
         else:
             payoffs = [0, 0, 0, 0]
         return np.array(payoffs)
+    
+class V1ButifarraPayoffDelegate(ButifarraPayoffDelegate):
+
+    def __init__(self):
+        pass
+
+    def get_payoffs(self, game: ButifarraGame):
+        ''' Get the payoffs of players.
+
+        Returns:
+            (list): A list of payoffs for each player.
+        '''
+
+        if not game.is_over():
+            raise Exception("game is not over")
+        cantar_move = game.round.cantar_move
+        if cantar_move:
+            declarer = cantar_move.player
+            won_bases_counts = game.round.won_bases_counts
+            won_cards = game.round.won_cards
+            declarer_won_bases_count = won_bases_counts[declarer.player_id % 2]
+            defender_won_bases_count = won_bases_counts[(declarer.player_id + 1) % 2]
+            declarer_valor_bases = sum([x.get_valor() for x in won_cards[declarer.player_id % 2]])
+            defender_valor_bases = sum([x.get_valor() for x in won_cards[(declarer.player_id +1 )% 2]])
+            
+            declarer_punts = (declarer_valor_bases + declarer_won_bases_count) - 36
+            defender_punts = (defender_valor_bases + defender_won_bases_count) - 36
+            
+            punts_ma = [0,0,0,0]
+            multiplicador = [0,0,0,0]
+            for p in range(4):
+                player_moves = [x for x in game.round.move_sheet if isinstance(x, PlayerMove) and x.player.player_id == p]
+                punts_ma[p] = sum([c.card.get_valor() for c in player_moves if isinstance(c, PlayCardMove)])
+                
+                for m in player_moves:
+                    if m.action.action_id >= m.action.first_play_card_action_id:
+                        break
+                    elif m.action.action_id == m.action.contrar_action_id:
+                        multiplicador[p] = 2
+                    elif m.action.action_id == m.action.recontrar_action_id:
+                        multiplicador[p] = 4
+                    elif m.action.action_id == m.action.sant_vicenc_action_id:
+                        multiplicador[p] = 8
+
+            declarer_punts_ma = punts_ma[declarer.player_id] + punts_ma[(declarer.player_id + 2) % 2 ]
+            defender_punts_ma = punts_ma[(declarer.player_id + 1) % 2] + punts_ma[(declarer.player_id + 3) % 2 ]
+                  
+            #declarer_mult = max(multiplicador[declarer.player_id], multiplicador[(declarer.player_id + 2) % 2])
+            #defender_mult = max(multiplicador[(declarer.player_id + 1) % 2], multiplicador[(declarer.player_id + 3) % 2])
+           
+            declarer_payoff = declarer_valor_bases - declarer_punts_ma + declarer_won_bases_count
+            defender_payoff = defender_valor_bases - defender_punts_ma + defender_won_bases_count
+
+            player_extra = [0,0,0,0]
+
+
+            
+            payoffs = []
+            for player_id in range(4):
+                payoff = declarer_payoff if player_id % 2 == declarer.player_id % 2 else defender_payoff
+                
+                punts = declarer_punts if player_id % 2 == declarer.player_id % 2 else defender_punts
+
+                extra = 0
+                if punts < 0:
+                    extra = 2 * multiplicador[p] * punts # penalty
+                else:
+                    extra = multiplicador[p] * punts # gain
+                
+                payoffs.append(payoff + extra)
+        else:
+            payoffs = [0, 0, 0, 0]
+        return np.array(payoffs)
+            
+
 
 
 class ButifarraStateExtractor(object):  # interface
@@ -186,19 +261,49 @@ class DefaultButifarraStateExtractor(ButifarraStateExtractor):
     def __init__(self):
         super().__init__()
 
-    def get_state_shape_size(self) -> int:
-        state_shape_size = 0
-        state_shape_size +=  48  # hand_rep
-        state_shape_size += 4 * 48  # bases_rep
-        #state_shape_size += 48  # hidden_cards_rep_
-        state_shape_size += 4  # delegar_rep
-        state_shape_size += 4  # cantar_rep
-        state_shape_size += 5  # trumfo
-        state_shape_size += 3  # contrar, recontrar, stvicenç
-        state_shape_size += 1  #cantant
-        state_shape_size += 4 # current player
+        state_names = ['hand',
+                            'cartes_jugades_jo',
+                            'cartes_jugades_company', 
+                            'cartes_jugades_dreta', 
+                            'cartes_jugades_esquerra',
+                            'cartes_amagades',
+                            'estem_cantant'
+                            'delegar_qui',
+                            'cantar_qui',
+                            'contrar',
+                            'recontrar',
+                            'stvicenc',
+                            'trumfo',
+                            #'current_player'
+                            ]
+        
+        state_sizes = [48, # 'hand',  
+                            48, # 'cartes_jugades_jo'
+                            48, # 'cartes_jugades_company', 
+                            48, # 'cartes_jugades_dreta', 
+                            48, # 'cartes_jugades_esquerra',
+                            48, # 'cartes_amagades',
+                            1, # 'estem_cantant'
+                            4, # 'delegar_qui',
+                            4, # 'cantar_qui',
+                            1, # 'contrar',
+                            1, # 'recontrar',
+                            1, # 'stvicenc',
+                            5, # 'trumfo',
+                            #4 # current_player
+                            ]
+        
+        self.state_size = sum(state_sizes)
+        self.state_idxs = {}
+        last_idx = 0
+        for i in range(len(state_names)):
+            new_idx = last_idx + state_sizes[i]
+            self.state_idxs[state_names[i]] = [last_idx, new_idx]
+            last_idx = new_idx
 
-        return state_shape_size
+
+    def get_state_shape_size(self) -> int:
+        return self.state_size
 
     def extract_state(self, game: ButifarraGame):
         ''' Extract useful information from state for RL.
@@ -217,59 +322,151 @@ class DefaultButifarraStateExtractor(ButifarraStateExtractor):
 
         # construct hands_rep of hands of players
         hand_rep = np.zeros(48, dtype=int)
-        if not game.is_over():
-            for card in game.round.players[current_player_id].hand:
-                hand_rep[card.card_id] = 1
+
+        for card in game.round.players[current_player_id].hand:
+            hand_rep[card.card_id] = 1
 
         # construct trick_pile_rep
-        bases_pila = [np.zeros(48, dtype=int) for _ in range(4)]
-        if game.round.is_bidding_over() and not game.is_over():
+
+        cartes_jugades_jo = np.zeros(48, dtype=int) 
+        cartes_jugades_company = np.zeros(48, dtype=int) 
+        cartes_jugades_dreta = np.zeros(48, dtype=int) 
+        cartes_jugades_esquerra = np.zeros(48, dtype=int) 
+
+        cartes_amagades = np.zeros(48, dtype=int)
+        
+        if game.round.is_bidding_over():
             trick_moves = game.round.get_bases_moves()
             for move in trick_moves:
                 player = move.player
                 card = move.card
-                bases_pila[player.player_id][card.card_id] = 1
+                if player.player_id == current_player_id: 
+                    # es jo
+                    cartes_jugades_jo[card.card_id] = 1
 
+                elif player.player_id == ((current_player_id + 2) % 4): 
+                    # es company
+                    cartes_jugades_company[card.card_id] = 1
+
+                elif player.player_id == ((current_player_id + 1) % 4): 
+                    # es dreta
+                    cartes_jugades_dreta[card.card_id] = 1
+
+                elif player.player_id == ((current_player_id + 3) % 4): 
+                    # es esquerra
+                    cartes_jugades_esquerra[card.card_id] = 1
+
+                else:
+                    raise Exception("Jugador inexistent")
+                
+            
+            cartes_visibles = hand_rep + cartes_jugades_jo + cartes_jugades_company + cartes_jugades_dreta + cartes_jugades_esquerra
+            for i in range(48):
+                if cartes_visibles[i] == 1:
+                    cartes_amagades[i] = 0 
+                elif cartes_visibles[i] == 0:
+                    cartes_amagades[i] = 1
+                else:
+                    raise Exception("mes d'una mateixa carta apareix")
+
+   
+ 
         # construct current_player_rep
         current_player_rep = np.zeros(4, dtype=int)
         current_player_rep[current_player_id] = 1
 
         # construct is_bidding_rep
-        is_bidding_rep = np.array([1] if game.round.is_bidding_over() else [0])
+        estem_cantant = np.array([1] if game.round.is_bidding_over() else [0])
 
         delegar_rep = np.zeros(4, dtype=int)
-        if not game.is_over() and game.round.delegar_move is not None:
-            delegar_rep[game.round.delegar_move.player.player_id] = 1
-        
+        if game.round.delegar_move is not None:
+            id = game.round.delegar_move.player.player_id
+
+            if id == current_player_id: 
+                    # es jo
+                delegar_rep[0] = 1
+
+            elif id == ((current_player_id + 2) % 4): 
+                # es company
+                delegar_rep[1] = 1
+
+            elif id == ((current_player_id + 1) % 4): 
+                # es dreta
+                delegar_rep[2] = 1
+
+            elif id == ((current_player_id + 3) % 4): 
+                # es esquerra
+                delegar_rep[3] = 1
+
+            else:
+                raise Exception("what?")
+            
+
         cantar_rep = np.zeros(4, dtype=int)
-        if  not game.is_over() and game.round.cantar_move is not None:
-            cantar_rep[game.round.cantar_move.player.player_id] = 1
+        if game.round.cantar_move is not None:
+            id = game.round.cantar_move.player.player_id
 
-        multiplicadors_rep = np.zeros(3, dtype=int)
-        if  not game.is_over():
-            if game.round.doubling_cube == 8:
-                multiplicadors_rep[2] = 1
-            if game.round.doubling_cube >= 4:
-                multiplicadors_rep[1] = 1
-            if game.round.doubling_cube >= 2:
-                multiplicadors_rep[0] = 1
+            if id == current_player_id: 
+                    # es jo
+                cantar_rep[0] = 1
+
+            elif id == ((current_player_id + 2) % 4): 
+                # es company
+                cantar_rep[1] = 1
+
+            elif id == ((current_player_id + 1) % 4): 
+                # es dreta
+                cantar_rep[2] = 1
+
+            elif id == ((current_player_id + 3) % 4): 
+                # es esquerra
+                cantar_rep[3] = 1
+
+            else:
+                raise Exception("what?")
+        
+        
+        st_vicenc_rep = np.array([1] if game.round.doubling_cube == 8 else [0])
+        recontrar_rep = np.array([1] if game.round.doubling_cube >= 4 else [0])
+        contrar_rep = np.array([1] if game.round.doubling_cube >=2 else [0])
+
+        trumfo_suit_rep = np.zeros(5, dtype=int)
+        if game.round.is_bidding_over():
+            trumfo_suit_rep[game.round.cantar_move.action.pal_id] = 1
+
 
         
-        trump_suit_rep = np.zeros(5, dtype=int)
-        if game.round.is_bidding_over() and not game.is_over():
-            trump_suit_rep[game.round.cantar_move.action.pal_id] = 1
+        # state_names = ['hand',
+        #                     'cartes_jugades_jo',
+        #                     'cartes_jugades_company', 
+        #                     'cartes_jugades_dreta', 
+        #                     'cartes_jugades_esquerra',
+        #                     'cartes_amagades',
+        #                     'estem_cantant'
+        #                     'delegar_qui',
+        #                     'cantar_qui',
+        #                     'contrar',
+        #                     'recontrar',
+        #                     'stvicenc',
+        #                     'trumfo',
+        #                     #'current_player'
+        #                    ]
 
 
         rep = []
         rep.append(hand_rep)
-        rep += bases_pila
-        # amagades
-        rep.append(delegar_rep)
+        rep.append(cartes_jugades_jo)
+        rep.append(cartes_jugades_company)
+        rep.append(cartes_jugades_dreta)
+        rep.append(cartes_jugades_esquerra)
+        rep.append(cartes_amagades)
+        rep.append(estem_cantant) # 0 - 48
+        rep.append(delegar_rep) 
         rep.append(cantar_rep)
-        rep.append(multiplicadors_rep)
-        rep.append(is_bidding_rep)
-        rep.append(trump_suit_rep)
-        rep.append(current_player_rep)
+        rep.append(contrar_rep)
+        rep.append(recontrar_rep)
+        rep.append(st_vicenc_rep)
+        rep.append(trumfo_suit_rep)
 
         obs = np.concatenate(rep)
         extracted_state['obs'] = obs

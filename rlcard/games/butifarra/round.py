@@ -243,6 +243,7 @@ class ButifarraRound:
         return None
 
     def get_perfect_information(self):
+        print("get perfect info")
         state = {}
         last_call_move = None
         if not self.is_bidding_over() or self.play_card_count == 0:
