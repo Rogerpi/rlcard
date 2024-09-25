@@ -7,6 +7,7 @@ import rlcard
 from rlcard.agents import (
     DQNAgent,
     RandomAgent,
+    ButifarraHumanAgent
 )
 from rlcard.utils import (
     get_device,
@@ -16,16 +17,22 @@ from rlcard.utils import (
 
 def load_model(model_path, env=None, position=None, device=None):
     if os.path.isfile(model_path):  # Torch model
+        print("torch")
         import torch
         agent = torch.load(model_path, map_location=device)
         agent.set_device(device)
     elif os.path.isdir(model_path):  # CFR model
+        print("cfr")
         from rlcard.agents import CFRAgent
         agent = CFRAgent(env, model_path)
         agent.load()
     elif model_path == 'random':  # Random model
         from rlcard.agents import RandomAgent
         agent = RandomAgent(num_actions=env.num_actions)
+    elif model_path == 'human':
+        print("human!")
+        agent = ButifarraHumanAgent(num_actions=env.num_actions)
+
     else:  # A model in the model zoo
         from rlcard import models
         agent = models.load(model_path).agents[position]
@@ -46,7 +53,9 @@ def evaluate(args):
     # Load models
     agents = []
     for position, model_path in enumerate(args.models):
+        print(model_path)
         agents.append(load_model(model_path, env, position, device))
+
     env.set_agents(agents)
 
     # Evaluate
@@ -84,10 +93,10 @@ if __name__ == '__main__':
         '--models',
         nargs='*',
         default=[
-            'experiments/butifarra/model.pth',
+            'examples/experiments/butifarra/model.pth',
             'human', # todo
-            'experiments/butifarra/model.pth',
-            'experiments/butifarra/model.pth'
+            'examples/experiments/butifarra/model.pth',
+            'examples/experiments/butifarra/model.pth'
         ],
     )
     parser.add_argument(
