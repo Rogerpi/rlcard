@@ -262,20 +262,22 @@ class DefaultButifarraStateExtractor(ButifarraStateExtractor):
         super().__init__()
 
         state_names = ['hand',
-                            'cartes_jugades_jo',
-                            'cartes_jugades_company', 
-                            'cartes_jugades_dreta', 
-                            'cartes_jugades_esquerra',
-                            'cartes_amagades',
-                            'estem_cantant'
-                            'delegar_qui',
-                            'cantar_qui',
-                            'contrar',
-                            'recontrar',
-                            'stvicenc',
-                            'trumfo',
-                            #'current_player'
-                            ]
+                        'cartes_jugades_jo',
+                        'cartes_jugades_company', 
+                        'cartes_jugades_dreta', 
+                        'cartes_jugades_esquerra',
+                        'cartes_amagades',
+                        'basa_actual',
+                        'ordre_basa',
+                        'estem_cantant'
+                        'delegar_qui',
+                        'cantar_qui',
+                        'contrar',
+                        'recontrar',
+                        'stvicenc',
+                        'trumfo',
+                        'current_player'
+                        ] # idees: nombre bases guanyades, nombre bases consecutives
         
         state_sizes = [48, # 'hand',  
                             48, # 'cartes_jugades_jo'
@@ -283,6 +285,8 @@ class DefaultButifarraStateExtractor(ButifarraStateExtractor):
                             48, # 'cartes_jugades_dreta', 
                             48, # 'cartes_jugades_esquerra',
                             48, # 'cartes_amagades',
+                            4, # 'basa_actual',
+                            4, # 'ordre_basa',
                             1, # 'estem_cantant'
                             4, # 'delegar_qui',
                             4, # 'cantar_qui',
@@ -290,7 +294,7 @@ class DefaultButifarraStateExtractor(ButifarraStateExtractor):
                             1, # 'recontrar',
                             1, # 'stvicenc',
                             5, # 'trumfo',
-                            #4 # current_player
+                            4 # current_player
                             ]
         
         self.state_size = sum(state_sizes)
@@ -334,7 +338,10 @@ class DefaultButifarraStateExtractor(ButifarraStateExtractor):
         cartes_jugades_esquerra = np.zeros(48, dtype=int) 
 
         cartes_amagades = np.zeros(48, dtype=int)
-        
+
+        basa_actual = np.ones(4, dtype=int) * -1
+        basa_jugadors = np.ones(4, dtype=int) * -1
+
         if game.round.is_bidding_over():
             trick_moves = game.round.get_bases_moves()
             for move in trick_moves:
@@ -368,6 +375,16 @@ class DefaultButifarraStateExtractor(ButifarraStateExtractor):
                     cartes_amagades[i] = 1
                 else:
                     raise Exception("mes d'una mateixa carta apareix")
+                
+            cartes_basa = game.round.get_bases_moves()
+
+            for i in range(len(cartes_basa)):
+                move = cartes_basa[i]
+                basa_actual[i] = move.card.card_id
+
+            primer_jugador = cartes_basa[0].player.player_id if len(cartes_basa) > 0 else current_player_id
+            for i in range(4):
+                basa_jugadors[i] = (primer_jugador + i ) % 4
 
    
  
@@ -437,20 +454,22 @@ class DefaultButifarraStateExtractor(ButifarraStateExtractor):
 
         
         # state_names = ['hand',
-        #                     'cartes_jugades_jo',
-        #                     'cartes_jugades_company', 
-        #                     'cartes_jugades_dreta', 
-        #                     'cartes_jugades_esquerra',
-        #                     'cartes_amagades',
-        #                     'estem_cantant'
-        #                     'delegar_qui',
-        #                     'cantar_qui',
-        #                     'contrar',
-        #                     'recontrar',
-        #                     'stvicenc',
-        #                     'trumfo',
-        #                     #'current_player'
-        #                    ]
+        #                 'cartes_jugades_jo',
+        #                 'cartes_jugades_company', 
+        #                 'cartes_jugades_dreta', 
+        #                 'cartes_jugades_esquerra',
+        #                 'cartes_amagades',
+        #                 'basa_actual',
+        #                 'ordre_basa',
+        #                 'estem_cantant'
+        #                 'delegar_qui',
+        #                 'cantar_qui',
+        #                 'contrar',
+        #                 'recontrar',
+        #                 'stvicenc',
+        #                 'trumfo',
+        #                 'current_player'
+        #                 ]
 
 
         rep = []
@@ -460,13 +479,16 @@ class DefaultButifarraStateExtractor(ButifarraStateExtractor):
         rep.append(cartes_jugades_dreta)
         rep.append(cartes_jugades_esquerra)
         rep.append(cartes_amagades)
-        rep.append(estem_cantant) # 0 - 48
+        rep.append(basa_actual)
+        rep.append(basa_jugadors)
+        rep.append(estem_cantant)
         rep.append(delegar_rep) 
         rep.append(cantar_rep)
         rep.append(contrar_rep)
         rep.append(recontrar_rep)
         rep.append(st_vicenc_rep)
         rep.append(trumfo_suit_rep)
+        rep.append(current_player_rep)
 
         obs = np.concatenate(rep)
         extracted_state['obs'] = obs

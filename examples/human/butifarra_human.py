@@ -11,7 +11,7 @@ from rlcard.utils import (
 import torch
         
 # Make environment
-model_path = "examples/experiments/butifarra-test/model.pth"
+model_path = "experiments/butifarra-amics/agent1/model.pth"
 env = rlcard.make('butifarra')
 human_agent = HumanAgent(env.num_actions)
 
@@ -26,9 +26,9 @@ m3.set_device(get_device())
 
 
 env.set_agents([
-    human_agent,
     m1,
     m2,
+    human_agent,
     m3
 ])
 
