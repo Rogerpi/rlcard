@@ -90,7 +90,7 @@ class ButifarraEnv(Env):
         Returns:
             (ActionEvent): The action that will be passed to the game engine.
         '''
-        return ActionEvent.from_action_id(action_id=action_id)
+        return ActionEvent.from_action_id(action_id=action_id) # todo: not sure if correct, made me make changes to how it is saved in web db
 
     def _get_legal_actions(self):
         ''' Get all legal actions for current state.
@@ -493,6 +493,6 @@ class DefaultButifarraStateExtractor(ButifarraStateExtractor):
         obs = np.concatenate(rep)
         extracted_state['obs'] = obs
         extracted_state['legal_actions'] = legal_actions
-        extracted_state['raw_legal_actions'] = raw_legal_actions
+        extracted_state['raw_legal_actions'] = [str(a) for a in legal_actions] # TODO: needed for web server, as it complained of not being strings... Really have to check why othres don't have it
         extracted_state['raw_obs'] = obs
         return extracted_state
