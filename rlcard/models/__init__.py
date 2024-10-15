@@ -34,3 +34,7 @@ register(
     model_id='butifarra-dqn',
     entry_point='rlcard.models.pretrained_butifarra_dqn:ButifarraDQNModel')
 
+register(
+    model_id='butifarra-random',
+    entry_point='rlcard.models.butifarra_random:ButifarraRandomModel')
+

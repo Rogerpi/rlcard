@@ -48,7 +48,7 @@ class ButifarraEnv(Env):
         self.name = 'butifarra'
         self.game = Game()
         super().__init__(config=config)
-        self.butifarraPayoffDelegate = V1ButifarraPayoffDelegate()
+        self.butifarraPayoffDelegate = DefaultButifarraPayoffDelegate()
         self.butifarraStateExtractor = DefaultButifarraStateExtractor()
         state_shape_size = self.butifarraStateExtractor.get_state_shape_size()
         self.state_shape = [[1, state_shape_size] for _ in range(self.num_players)]
@@ -204,10 +204,6 @@ class V1ButifarraPayoffDelegate(ButifarraPayoffDelegate):
             declarer_payoff = declarer_valor_bases - declarer_punts_ma + declarer_won_bases_count
             defender_payoff = defender_valor_bases - defender_punts_ma + defender_won_bases_count
 
-            player_extra = [0,0,0,0]
-
-
-            
             payoffs = []
             for player_id in range(4):
                 payoff = declarer_payoff if player_id % 2 == declarer.player_id % 2 else defender_payoff
@@ -221,6 +217,14 @@ class V1ButifarraPayoffDelegate(ButifarraPayoffDelegate):
                     extra = multiplicador[p] * punts # gain
                 
                 payoffs.append(payoff + extra)
+
+            # print("-----------------")
+            # print("payoffs", payoffs)
+            # print("punts", [declarer_punts, defender_punts])
+            # print("punts_ma", punts_ma)
+            # print("multiplicador", multiplicador)
+            # print("-----------------")
+
         else:
             payoffs = [0, 0, 0, 0]
         return np.array(payoffs)
