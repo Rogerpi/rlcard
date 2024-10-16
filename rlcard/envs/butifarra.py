@@ -571,8 +571,6 @@ class DefaultHiddenButifarraStateExtractor(ButifarraStateExtractor):
         Returns:
             (numpy.array): The extracted state
         '''
-
-        print("extracting state")
         extracted_state = {}
         legal_actions: OrderedDict = self.get_legal_actions(game=game)
         raw_legal_actions = list(legal_actions.keys())
