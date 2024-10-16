@@ -537,7 +537,7 @@ class DefaultHiddenButifarraStateExtractor(ButifarraStateExtractor):
                             48, # 'cartes_possibles_dreta', 
                             48, # 'cartes_possibles_esquerra',
                             48, # 'cartes_amagades',
-                            4, # 'basa_actual',
+                            3, # 'basa_actual',
                             4, # 'basa_qui',
                             1, # 'estem_cantant'
                             4, # 'delegar_qui',
@@ -597,7 +597,7 @@ class DefaultHiddenButifarraStateExtractor(ButifarraStateExtractor):
 
         cartes_amagades = np.zeros(48, dtype=int)
 
-        basa_actual = np.ones(4, dtype=int) * -1
+        basa_actual = np.ones(3, dtype=int) * -1
         basa_qui = np.ones(4, dtype=int) * -1
 
         player_company = ((current_player_id + 2) % 4)
@@ -676,6 +676,11 @@ class DefaultHiddenButifarraStateExtractor(ButifarraStateExtractor):
 
             elif (len(cartes_basa) > 0):
                 basa_jugador = cartes_basa[0].player.player_id
+
+            if len(cartes_basa) < 4:
+                for i in range(len(cartes_basa)):
+                    basa_actual[i] = cartes_basa[i].card.card_id
+
 
             #else: currentplayer
 
@@ -815,8 +820,8 @@ class DefaultHiddenButifarraStateExtractor(ButifarraStateExtractor):
         extracted_state['text']['cartes_possibles_dreta'] = [ButifarraCard.card(i).__repr__() for i in range(48) if cartes_possibles_dreta[i] == 1]
         extracted_state['text']['cartes_possibles_esquerra'] = [ButifarraCard.card(i).__repr__() for i in range(48) if cartes_possibles_esquerra[i] == 1]
         extracted_state['text']['cartes_amagades'] = [ButifarraCard.card(i).__repr__() for i in range(48) if cartes_amagades[i] == 1]
-        extracted_state['text']['basa_actual'] = [ButifarraCard.card(i).__repr__() for i in range(4) if basa_actual[i] != -1]
-        extracted_state['text']['basa_jugador'] = 'None' if basa_jugador else basa_jugador
+        extracted_state['text']['basa_actual'] = [ButifarraCard.card(basa_actual[i]).__repr__() for i in range(3) if basa_actual[i] != -1]
+        extracted_state['text']['basa_jugador'] = 'None' if not basa_jugador else basa_jugador
         #extracted_state['text']['estem_cantant'] = estem_cantant
         #extracted_state['text']['delegar_qui'] = [ButifarraCard.card(i) for i in range(4) if delegar_rep[i] == 1]
         #extracted_state['text']['cantar_qui'] = [ButifarraCard.card(i) for i in range(4) if cantar_rep[i] == 1]
