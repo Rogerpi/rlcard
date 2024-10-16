@@ -12,18 +12,13 @@ from rlcard.utils import (
 import torch
         
 # Make environment
-model_path = "/home/roger/libs/rlcard/experiments/butifarra-amics/agent1/model.pth"
+model_path = "experiments/butifarra-amics/agent1/model.pth"
 env = rlcard.make('butifarra')
 human_agent = HumanAgent(env.num_actions)
 
-m1 = torch.load(model_path, map_location=get_device())
-m1.set_device(get_device())
-
-m2 = torch.load(model_path, map_location=get_device())
-m2.set_device(get_device())
-
-m3 = torch.load(model_path, map_location=get_device())
-m3.set_device(get_device())
+m1 = RandomAgent(num_actions=env.num_actions)
+m2 = RandomAgent(num_actions=env.num_actions)
+m3 = RandomAgent(num_actions=env.num_actions)
 
 
 env.set_agents([
