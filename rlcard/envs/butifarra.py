@@ -14,7 +14,7 @@ from rlcard.games.butifarra import Game
 from rlcard.games.butifarra.game import ButifarraGame
 from rlcard.games.butifarra.utils.action_event import ActionEvent
 from rlcard.games.butifarra.utils.butifarra_card import ButifarraCard
-from rlcard.games.butifarra.utils.move import CallMove, PlayCardMove, PlayerMove
+from rlcard.games.butifarra.utils.move import CallMove, PlayCardMove, PlayerMove, CantarAction
 
 #   [] Why no_bid_action_id in bidding_rep ?
 #       It allows the bidding always to start with North.
@@ -510,23 +510,22 @@ class DefaultHiddenButifarraStateExtractor(ButifarraStateExtractor):
 
         state_names = ['hand',
                         'cartes_jugades_jo',
+                        'cartes_jugades_esquerra',
                         'cartes_jugades_company', 
                         'cartes_jugades_dreta', 
-                        'cartes_jugades_esquerra',
+                        'cartes_possibles_esquerra',
                         'cartes_possibles_company', 
                         'cartes_possibles_dreta', 
-                        'cartes_possibles_esquerra',
                         'cartes_amagades',
                         'basa_actual',
-                        'ordre_basa',
+                        'basa_qui',
                         'estem_cantant'
                         'delegar_qui',
                         'cantar_qui',
                         'contrar',
                         'recontrar',
                         'stvicenc',
-                        'trumfo',
-                        'current_player'
+                        'trumfo'
                         ] # idees: nombre bases guanyades, nombre bases consecutives
         
         state_sizes = [48, # 'hand',  
@@ -539,15 +538,15 @@ class DefaultHiddenButifarraStateExtractor(ButifarraStateExtractor):
                             48, # 'cartes_possibles_esquerra',
                             48, # 'cartes_amagades',
                             4, # 'basa_actual',
-                            4, # 'ordre_basa',
+                            4, # 'basa_qui',
                             1, # 'estem_cantant'
                             4, # 'delegar_qui',
                             4, # 'cantar_qui',
                             1, # 'contrar',
                             1, # 'recontrar',
                             1, # 'stvicenc',
-                            5, # 'trumfo',
-                            4 # current_player
+                            5 # 'trumfo',
+                            
                             ]
         
         self.state_size = sum(state_sizes)
@@ -572,6 +571,7 @@ class DefaultHiddenButifarraStateExtractor(ButifarraStateExtractor):
             (numpy.array): The extracted state
         '''
         extracted_state = {}
+        extracted_state['class'] = self.__class__.__name__
         legal_actions: OrderedDict = self.get_legal_actions(game=game)
         raw_legal_actions = list(legal_actions.keys())
         current_player = game.round.get_current_player()
@@ -595,22 +595,31 @@ class DefaultHiddenButifarraStateExtractor(ButifarraStateExtractor):
         cartes_possibles_dreta = np.ones(48, dtype=int) 
         cartes_possibles_esquerra = np.ones(48, dtype=int) 
 
-        for i in range(48):
-            if hand_rep[i] == 1:
-                cartes_possibles_company[i] = 0
-                cartes_possibles_dreta[i] = 0
-                cartes_possibles_esquerra[i] = 0
-
         cartes_amagades = np.zeros(48, dtype=int)
 
         basa_actual = np.ones(4, dtype=int) * -1
-        basa_jugadors = np.ones(4, dtype=int) * -1
+        basa_qui = np.ones(4, dtype=int) * -1
 
         player_company = ((current_player_id + 2) % 4)
-        player_dreta = ((current_player_id + 1) % 4)
-        player_esquerra = ((current_player_id + 3) % 4)
+        player_dreta = ((current_player_id + 3) % 4)
+        player_esquerra = ((current_player_id + 1) % 4)
 
-        if game.round.is_bidding_over():
+        basa_jugador = None
+
+        if not game.round.is_bidding_over():
+            for i in range(48):
+                if hand_rep[i] == 1:
+                    cartes_amagades[i] = 0 
+                    cartes_possibles_company[i] = 0
+                    cartes_possibles_dreta[i] = 0
+                    cartes_possibles_esquerra[i] = 0
+                elif hand_rep[i] == 0:
+                    cartes_amagades[i] = 1
+                else:
+                    raise Exception("mes d'una mateixa carta apareix")
+
+
+        else:
             first_play_card_idx = -1
             for i in range(len(game.round.move_sheet)):
                 if isinstance(game.round.move_sheet[i], PlayCardMove):
@@ -652,25 +661,43 @@ class DefaultHiddenButifarraStateExtractor(ButifarraStateExtractor):
                 else:
                     raise Exception("mes d'una mateixa carta apareix")
                 
+
+            trumfo = game.round.get_trumfo()
             cartes_basa = game.round.get_bases_moves()
 
-            for i in range(len(cartes_basa)):
-                move = cartes_basa[i]
-                basa_actual[i] = move.card.card_id
+            basa_jugador = current_player_id
 
-            primer_jugador = cartes_basa[0].player.player_id if len(cartes_basa) > 0 else current_player_id
-            for i in range(4):
-                basa_jugadors[i] = (primer_jugador + i ) % 4
+            if (len(cartes_basa) == 4):
+                max_move = cartes_basa[0]
+                for i in range(1,4):
+                    if cartes_basa[i].card.mes_alta_que(max_move.card, cartes_basa[0].card.suit, trumfo):
+                        max_move = cartes_basa[i]
+                basa_jugador = max_move.player.player_id
+
+            elif (len(cartes_basa) > 0):
+                basa_jugador = cartes_basa[0].player.player_id
+
+            #else: currentplayer
+
+            if basa_jugador == current_player_id:
+                basa_qui[0] = 1
+            elif basa_jugador == player_esquerra:
+                basa_qui[1] = 1
+            elif basa_jugador == player_company:
+                basa_qui[2] = 1
+            elif basa_jugador == player_dreta:
+                basa_qui[3] = 1
+
+            else:
+                raise Exception('la basa no es de ningu')
+
 
             # construct possible cards
 
-            cartes_possibles_company = calculateHiddenInfo(game.round.move_sheet, hand_rep, game.round.get_trumfo(), player_company)
-            cartes_possibles_dreta = calculateHiddenInfo(game.round.move_sheet, hand_rep, game.round.get_trumfo(), player_dreta)
-            cartes_possibles_esquerra = calculateHiddenInfo(game.round.move_sheet, hand_rep, game.round.get_trumfo(), player_esquerra)
-    
-        # construct current_player_rep
-        current_player_rep = np.zeros(4, dtype=int)
-        current_player_rep[current_player_id] = 1
+            cartes_possibles_company = calculateHiddenInfo(game.round.move_sheet, hand_rep, trumfo, player_company)
+            cartes_possibles_dreta = calculateHiddenInfo(game.round.move_sheet, hand_rep, trumfo, player_dreta)
+            cartes_possibles_esquerra = calculateHiddenInfo(game.round.move_sheet, hand_rep, trumfo, player_esquerra)
+
 
         # construct is_bidding_rep
         estem_cantant = np.array([1] if game.round.is_bidding_over() else [0])
@@ -683,15 +710,15 @@ class DefaultHiddenButifarraStateExtractor(ButifarraStateExtractor):
                     # es jo
                 delegar_rep[0] = 1
 
-            elif id == ((current_player_id + 2) % 4): 
+            elif id == player_esquerra: 
                 # es company
                 delegar_rep[1] = 1
 
-            elif id == ((current_player_id + 1) % 4): 
+            elif id == player_company: 
                 # es dreta
                 delegar_rep[2] = 1
 
-            elif id == ((current_player_id + 3) % 4): 
+            elif id == player_dreta: 
                 # es esquerra
                 delegar_rep[3] = 1
 
@@ -704,19 +731,15 @@ class DefaultHiddenButifarraStateExtractor(ButifarraStateExtractor):
             id = game.round.cantar_move.player.player_id
 
             if id == current_player_id: 
-                    # es jo
                 cantar_rep[0] = 1
 
-            elif id == ((current_player_id + 2) % 4): 
-                # es company
+            elif id == player_esquerra: 
                 cantar_rep[1] = 1
 
-            elif id == ((current_player_id + 1) % 4): 
-                # es dreta
+            elif id == player_company: 
                 cantar_rep[2] = 1
 
-            elif id == ((current_player_id + 3) % 4): 
-                # es esquerra
+            elif id == player_dreta: 
                 cantar_rep[3] = 1
 
             else:
@@ -765,8 +788,8 @@ class DefaultHiddenButifarraStateExtractor(ButifarraStateExtractor):
         rep.append(cartes_possibles_dreta)
         rep.append(cartes_possibles_esquerra)
         rep.append(cartes_amagades)
+        rep.append(basa_qui)
         rep.append(basa_actual)
-        rep.append(basa_jugadors)
         rep.append(estem_cantant)
         rep.append(delegar_rep) 
         rep.append(cantar_rep)
@@ -774,17 +797,42 @@ class DefaultHiddenButifarraStateExtractor(ButifarraStateExtractor):
         rep.append(recontrar_rep)
         rep.append(st_vicenc_rep)
         rep.append(trumfo_suit_rep)
-        rep.append(current_player_rep)
 
         obs = np.concatenate(rep)
         extracted_state['obs'] = obs
         extracted_state['legal_actions'] = legal_actions
         extracted_state['raw_legal_actions'] = [str(a) for a in legal_actions] # TODO: needed for web server, as it complained of not being strings... Really have to check why othres don't have it
         extracted_state['raw_obs'] = obs
+
+        extracted_state['text'] = {}
+
+        extracted_state['text']['hand'] = [ButifarraCard.card(i).__repr__() for i in range(48) if hand_rep[i] == 1]
+        extracted_state['text']['cartes_jugades_jo'] = [ButifarraCard.card(i).__repr__() for i in range(48) if cartes_jugades_jo[i] == 1]
+        extracted_state['text']['cartes_jugades_company'] = [ButifarraCard.card(i).__repr__() for i in range(48) if cartes_jugades_company[i] == 1]
+        extracted_state['text']['cartes_jugades_dreta'] = [ButifarraCard.card(i).__repr__() for i in range(48) if cartes_jugades_dreta[i] == 1]
+        extracted_state['text']['cartes_jugades_esquerra'] = [ButifarraCard.card(i).__repr__() for i in range(48) if cartes_jugades_esquerra[i] == 1]
+        extracted_state['text']['cartes_possibles_company'] = [ButifarraCard.card(i).__repr__() for i in range(48) if cartes_possibles_company[i] == 1]
+        extracted_state['text']['cartes_possibles_dreta'] = [ButifarraCard.card(i).__repr__() for i in range(48) if cartes_possibles_dreta[i] == 1]
+        extracted_state['text']['cartes_possibles_esquerra'] = [ButifarraCard.card(i).__repr__() for i in range(48) if cartes_possibles_esquerra[i] == 1]
+        extracted_state['text']['cartes_amagades'] = [ButifarraCard.card(i).__repr__() for i in range(48) if cartes_amagades[i] == 1]
+        extracted_state['text']['basa_actual'] = [ButifarraCard.card(i).__repr__() for i in range(4) if basa_actual[i] != -1]
+        extracted_state['text']['basa_jugador'] = 'None' if basa_jugador else basa_jugador
+        #extracted_state['text']['estem_cantant'] = estem_cantant
+        #extracted_state['text']['delegar_qui'] = [ButifarraCard.card(i) for i in range(4) if delegar_rep[i] == 1]
+        #extracted_state['text']['cantar_qui'] = [ButifarraCard.card(i) for i in range(4) if cantar_rep[i] == 1]
+        #extracted_state['text']['contrar'] = contrar_rep
+        #extracted_state['text']['recontrar'] = recontrar_rep
+        #extracted_state['text']['stvicenc'] = st_vicenc_rep
+        #extracted_state['text']['trumfo'] = [CantarAction.accions[i] for i in range(5) if trumfo_suit_rep[i] == 1]
+        #extracted_state['text']['current_player'] =  current_player.player_id #index of current player
+
+
         return extracted_state
 
 
 
+
+### helpers
 
 def oneHotPalInterval(pal):
     # pals = ['O', 'B', 'C', 'E']
