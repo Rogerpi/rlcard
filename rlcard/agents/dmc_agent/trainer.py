@@ -170,6 +170,7 @@ class DMCTrainer:
                 return DMCModel(
                     self.env.state_shape,
                     self.action_shape,
+                    mlp_layers=[400],
                     exp_epsilon=self.exp_epsilon,
                     device=str(device),
                 )
