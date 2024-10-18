@@ -508,6 +508,8 @@ class DefaultHiddenButifarraStateExtractor(ButifarraStateExtractor):
     def __init__(self):
         super().__init__()
 
+        # proposta. Basa actual nomes la carta maxima en format one hot
+
         state_names = ['hand',
                         'cartes_jugades_jo',
                         'cartes_jugades_esquerra',
@@ -804,6 +806,7 @@ class DefaultHiddenButifarraStateExtractor(ButifarraStateExtractor):
         rep.append(trumfo_suit_rep)
 
         obs = np.concatenate(rep)
+
         extracted_state['obs'] = obs
         extracted_state['legal_actions'] = legal_actions
         extracted_state['raw_legal_actions'] = [str(a) for a in legal_actions] # TODO: needed for web server, as it complained of not being strings... Really have to check why othres don't have it
