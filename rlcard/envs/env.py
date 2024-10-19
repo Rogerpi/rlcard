@@ -145,19 +145,23 @@ class Env(object):
         while not self.is_over():
             # Agent plays
             if not is_training:
-                action, _ = self.agents[player_id].eval_step(state)
+                action, info = self.agents[player_id].eval_step(state)
             else:
                 action = self.agents[player_id].step(state)
 
-            print(f'player {player_id} raw {self.agents[player_id].use_raw}')
+            # print(f'player {player_id} raw {self.agents[player_id].use_raw}')
 
-            print(f'\n============ Player {player_id} Hand ===============')
-            hand_rep = state['obs'][0:48]
-            hand = [ButifarraCard.card(i) for i, x in enumerate(hand_rep) if x == 1]
-            #print(hand)
-            print_cards(hand)
-            print('\n-------------\n')
-            print(f'player: {player_id} action {ActionEvent.from_action_id(action)}')
+            # if isinstance(action, str):
+            #     # str to int
+            #     action = int(action)
+
+            # print(f'\n============ Player {player_id} Hand ===============')
+            # hand_rep = state['obs'][0:48]
+            # hand = [ButifarraCard.card(i) for i, x in enumerate(hand_rep) if x == 1]
+            # #print(hand)
+            # print_cards(hand)
+            # print('\n-------------\n')
+            # print(f'player: {player_id} action {ActionEvent.from_action_id(action)}')
 
             # Environment steps
             next_state, next_player_id = self.step(action, self.agents[player_id].use_raw)

@@ -117,7 +117,7 @@ class DMCTrainer:
         num_actors=5,
         training_device="0",
         savedir='experiments/dmc_result',
-        total_frames=100000000000,
+        total_frames=100000000,
         exp_epsilon=0.01,
         batch_size=32,
         unroll_length=100,
@@ -170,6 +170,7 @@ class DMCTrainer:
                 return DMCModel(
                     self.env.state_shape,
                     self.action_shape,
+                    mlp_layers=[400],
                     exp_epsilon=self.exp_epsilon,
                     device=str(device),
                 )
